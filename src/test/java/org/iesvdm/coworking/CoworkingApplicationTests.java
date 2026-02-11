@@ -1,11 +1,15 @@
 package org.iesvdm.coworking;
 
+import org.iesvdm.coworking.modelo.Reserva;
 import org.iesvdm.coworking.repositorio.MiembroRepository;
 import org.iesvdm.coworking.repositorio.ReservaRepository;
 import org.iesvdm.coworking.repositorio.SalaRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 @SpringBootTest
 class CoworkingApplicationTests {
@@ -41,7 +45,23 @@ class CoworkingApplicationTests {
     }
 
     //1. Devuelve un listado de todas las reservas realizadas durante el año 2025, cuya sala tenga un precio_hora superior a 25€.
+
+    @Test
+    void testReservas2025PrecioAlto(){
+
+        List<Reserva> reservas =  reservaRepository.findAll().stream()
+                .filter(r -> r.getFecha().getYear() == 2025)
+                .filter(r-> r.getSala().getPrecioHora().compareTo(BigDecimal.valueOf(25)) > 0)
+                .toList();
+
+        reservas.forEach(System.out::println);
+
+    }
+
     // 2. Devuelve un listado de todos los miembros que NO han realizado ninguna reserva.
+
+
+
     // 3. Devuelve una lista de los id's, nombres y emails de los miembros que no tienen el teléfono registrado.
     // El listado tiene que estar ordenado inverso alfabéticamente por nombre (z..a).
     // 4. Devuelve un listado con los id's y emails de los miembros que se hayan registrado con una cuenta de yahoo.es
