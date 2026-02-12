@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
 
 @SpringBootTest
@@ -60,12 +61,52 @@ class CoworkingApplicationTests {
 
     // 2. Devuelve un listado de todos los miembros que NO han realizado ninguna reserva.
 
+    @Test
+    void testMiembrosNoTienenReservas(){
 
+        var miembros = miembroRepository.findAll()
+                .stream()
+                .filter(m -> m.getReservas().isEmpty())
+                .toList();
+
+        miembros.forEach(System.out::println); // no hay miembros que no tengan reservas
+
+    }
 
     // 3. Devuelve una lista de los id's, nombres y emails de los miembros que no tienen el teléfono registrado.
     // El listado tiene que estar ordenado inverso alfabéticamente por nombre (z..a).
+    @Test
+    void testMiembrosSinTelefono(){
+
+        record MiembroDTO(Long id, String nombre, String email) {}
+
+        // isBlank() es mejor que isEmpty() porque también detecta " ".
+
+        var miembros = miembroRepository.findAll().stream()
+                .filter(m -> m.getTelefono() == null || m.getTelefono().isBlank())
+                .map(m -> new MiembroDTO(m.getId(), m.getNombre(), m.getEmail()))
+                .sorted(Comparator.comparing(MiembroDTO::nombre).reversed())
+                .toList();
+
+        miembros.forEach(System.out::println);
+
+    }
+
     // 4. Devuelve un listado con los id's y emails de los miembros que se hayan registrado con una cuenta de yahoo.es
     // en el año 2024.
+
+    @Test
+    void testMiembrosYahoo(){
+        record MiembroDTO(Long id, String email) {};
+
+        var miembros = miembroRepository.findAll().stream()
+                .filter(m -> m.getEmail().endsWith("@yahoo.es"))
+                .filter(m -> m.getFechaAlta().getYear() == 2024)
+                .map(m -> new MiembroDTO(m.getId(), m.getEmail()))
+                .toList();
+        miembros.forEach(System.out::println); // no existen miembros con el correo de yahoo.es
+    }
+
     // 5. Devuelve un listado de los miembros cuyo primer apellido es Martín. El listado tiene que estar ordenado
     // por fecha de alta en el coworking de más reciente a menos reciente y nombre y apellidos en orden alfabético.
     // 6. Devuelve el gasto total (estimado) que ha realizado la miembro Ana Beltrán en reservas del coworking.

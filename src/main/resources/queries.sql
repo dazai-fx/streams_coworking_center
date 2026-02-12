@@ -1,7 +1,45 @@
 -- 1. Devuelve un listado de todas las reservas realizadas durante el año 2025, cuya sala tenga un precio_hora superior a 25€.
+
+SELECT
+    r.reserva_id,
+    r.fecha,
+    r.hora_inicio,
+    r.hora_fin,
+    r.estado,
+    r.horas,
+    s.nombre AS nombre_sala,
+    s.precio_hora
+FROM reserva r
+         JOIN sala s ON r.sala_id = s.sala_id
+WHERE r.fecha BETWEEN '2025-01-01' AND '2025-12-31'
+  AND s.precio_hora > 25
+ORDER BY r.fecha;
+
 -- 2. Devuelve un listado de todos los miembros que NO han realizado ninguna reserva.
+-- esta opción es mejor porque no depende de como hagas el join y tengas duplicados y además es muy explicita semanticamente igual son validas ambas
+SELECT *
+FROM miembro m
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM reserva r
+    WHERE r.miembro_id = m.miembro_id
+);
+
+SELECT m.*
+FROM miembro m
+LEFT JOIN reserva r
+ON m.miembro_id = r.miembro_id
+WHERE r.reserva_id IS NULL;
+
 -- 3. Devuelve una lista de los id's, nombres y emails de los miembros que no tienen el teléfono registrado.
 -- El listado tiene que estar ordenado inverso alfabéticamente por nombre (z..a).
+SELECT miembro_id, nombre, email
+FROM miembro
+WHERE telefono IS NULL
+   OR TRIM(telefono) = ''
+ORDER BY nombre DESC;
+-- TRIM elimina espacios al inicio y al final.
+
 -- 4. Devuelve un listado con los id's y emails de los miembros que se hayan registrado con una cuenta de yahoo.es
 -- en el año 2024.
 -- 5. Devuelve un listado de los miembros cuyo primer apellido es Martín. El listado tiene que estar ordenado
