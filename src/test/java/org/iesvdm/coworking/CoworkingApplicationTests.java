@@ -97,6 +97,7 @@ class CoworkingApplicationTests {
 
     @Test
     void testMiembrosYahoo(){
+
         record MiembroDTO(Long id, String email) {};
 
         var miembros = miembroRepository.findAll().stream()
