@@ -434,4 +434,57 @@ class CoworkingApplicationTests {
 
     }
 
+    // Consultas y streams adicionales sobre miembros
+
+    // Listado de todos los miembros con: Nombre, email, plan, empresa y fecha de alta.
+
+    @Test
+    void testListadoMiembros(){
+
+        var miembros = miembroRepository.findAll().stream().toList();
+
+        miembros.forEach(System.out::println);
+
+    }
+
+    // Miembros que no tienen teléfono registrado.
+
+    @Test
+    void testMiembrosSinTelefonoRegistrado(){
+
+        var miembros = miembroRepository.findAll().stream()
+                .filter(m -> m.getTelefono() == null || m.getTelefono().isBlank())
+                .toList();
+
+        miembros.forEach(System.out::println);
+
+    }
+
+    // Miembros de cada plan (BASIC, PRO, TEAM), mostrando cuántos hay de cada tipo.
+
+
+    @Test
+    void testMiembrosDeCadaPlanCuenta (){
+
+        var miembrosBasic = miembroRepository.findAll().stream()
+                .filter(m -> "BASIC".equals(m.getPlan())) // Uso de comillas dobles
+                .count();
+
+        System.out.println("Miembros Basic: " + miembrosBasic);
+
+        var miembrosPro = miembroRepository.findAll().stream()
+                .filter(m -> "PRO".equals(m.getPlan()))
+                .count();
+
+        System.out.println("Miembros PRO: " + miembrosPro);
+
+        var miembrosTeam = miembroRepository.findAll().stream()
+                .filter(m -> "TEAM".equals(m.getPlan()))
+                .count();
+
+        System.out.println("Miembros TEAM: "+ miembrosTeam);
+
+    }
+
+
 }
