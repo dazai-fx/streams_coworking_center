@@ -203,3 +203,244 @@ SELECT (TIME_TO_SEC(cierre) - TIME_TO_SEC(apertura)) / 3600 * precio_hora AS ing
 FROM sala
 WHERE nombre = 'Auditorio Sol';
 
+
+-- Consultas y streams adicionales sobre miembros
+
+-- Listado de todos los miembros con: Nombre, email, plan, empresa y fecha de alta.
+
+SELECT nombre, email, plan, empresa, fecha_alta
+FROM miembro;
+
+-- Miembros que no tienen teléfono registrado.
+
+SELECT *
+FROM miembro
+WHERE telefono IS NULL
+   OR TRIM(telefono) = '';
+
+-- Miembros de cada plan (BASIC, PRO, TEAM), mostrando cuántos hay de cada tipo.
+
+SELECT plan, COUNT(*) AS total_miembros
+FROM miembro
+GROUP BY plan;
+
+-- Miembros dados de alta a partir de una determinada fecha (por ejemplo, desde junio de 2024).
+
+SELECT nombre, fecha_alta
+FROM miembro
+WHERE fecha_alta >= '2024-06-01';
+
+-- Listado general de salas con nombre, aforo y precio/hora.
+
+SELECT nombre, aforo, precio_hora
+FROM sala;
+
+-- Salas con aforo mayor o igual que X (por ejemplo, 15 personas).
+
+SELECT aforo, precio_hora
+FROM sala
+WHERE aforo >= 15;
+
+-- Salas ordenadas por precio_hora de mayor a menor.
+
+SELECT nombre, precio_hora
+FROM sala
+ORDER BY precio_hora DESC;
+
+-- Listar las salas que disponen de pantalla = true.
+
+SELECT nombre, recursos
+FROM sala
+WHERE JSON_EXTRACT(recursos, '$.pantalla') = true;
+
+SELECT
+    nombre,
+    recursos->>'$.pantalla' AS pantalla
+FROM sala
+WHERE recursos->>'$.pantalla' = 'true';
+
+-- Listar las salas que permiten videocall
+
+SELECT nombre,
+       JSON_EXTRACT(recursos, '$.videocall') AS videocall
+FROM sala
+WHERE JSON_EXTRACT(recursos, '$.videocall') = true;
+
+-- Mostrar para cada sala el valor de un recurso concreto
+-- (por ejemplo, sonido o número de microfonos si existe).
+
+SELECT
+    nombre,
+    recursos->>'$.microfonos' AS microfonos
+FROM sala
+WHERE JSON_EXTRACT(recursos, '$.microfonos') IS NOT NULL;
+
+-- Listado de reservas con: Nombre del miembro. Nombre de la sala. Fecha, hora de inicio, hora fin, horas totales y estado.
+
+SELECT
+    m.nombre AS miembro,
+    s.nombre AS sala,
+    r.fecha,
+    r.hora_inicio,
+    r.hora_fin,
+    r.horas,
+    r.estado
+FROM reserva r
+         JOIN miembro m ON r.miembro_id = m.miembro_id
+         JOIN sala s ON r.sala_id = s.sala_id;
+
+-- Reservas de un miembro concreto (por ejemplo, “Jorge Castillo”) he cambiado el ejemplo por uno que si tengo en bd
+
+SELECT
+    m.nombre,
+    s.nombre,
+    r.fecha,
+    r.hora_inicio,
+    r.hora_fin
+FROM reserva r
+         JOIN miembro m ON r.miembro_id = m.miembro_id
+         JOIN sala s ON s.sala_id = r.sala_id
+WHERE m.nombre = 'Jorge Castillo';
+
+-- Reservas de un determinado mes y año (por ejemplo, octubre de 2024).
+
+SELECT
+    m.nombre AS miembro,
+    s.nombre AS sala,
+    r.fecha,
+    r.hora_inicio,
+    r.hora_fin,
+    r.horas,
+    r.estado
+FROM reserva r
+         JOIN miembro m ON r.miembro_id = m.miembro_id
+         JOIN sala s ON r.sala_id = s.sala_id
+WHERE YEAR(r.fecha) = 2024
+  AND MONTH(r.fecha) = 10;
+
+-- Reservas con estado PENDIENTE, CONFIRMADA, CANCELADA o ASISTIDA (según se indique).
+
+SELECT r.*, m.nombre AS miembro, s.nombre AS sala
+FROM reserva r
+         JOIN miembro m ON r.miembro_id = m.miembro_id
+         JOIN sala s ON r.sala_id = s.sala_id
+WHERE r.estado = 'CONFIRMADA';
+
+-- Reservas en las que se han aplicado descuentos (descuento_pct no nulo).
+
+SELECT r.*, m.nombre AS miembro, s.nombre AS sala
+FROM reserva r
+         JOIN miembro m ON r.miembro_id = m.miembro_id
+         JOIN sala s ON r.sala_id = s.sala_id
+WHERE r.descuento_pct IS NOT NULL
+  AND r.descuento_pct > 0;
+
+-- Ingresos estimados por sala y mes:
+
+
+-- Calcular el importe teórico de cada reserva:
+
+--  importe = horas * precio_hora * (1 - descuento_pct/100)
+-- (recuerda considerar descuento_pct nulo como 0).
+
+
+-- Mostrar, para cada sala y mes, el total estimado.
+
+
+SELECT
+    s.nombre AS sala,
+    YEAR(r.fecha) AS anio,
+    MONTHNAME(r.fecha) AS mes,
+    -- Formula: SUM(horas * precio * (1 - descuento/100))
+    -- Usamos COALESCE para que los descuentos NULL cuenten como 0
+    ROUND(SUM(
+                  r.horas * s.precio_hora * (1 - COALESCE(r.descuento_pct, 0) / 100)
+          ), 2) AS total_estimado
+FROM
+    reserva r
+        JOIN
+    sala s ON r.sala_id = s.sala_id
+GROUP BY
+    s.nombre,
+    anio,
+    MONTH(r.fecha), -- Agrupamos por el número del mes para mantener el orden cronológico
+    mes
+ORDER BY
+    anio DESC,
+    MONTH(r.fecha) ASC,
+    s.nombre ASC;
+
+-- Listar, para cada sala, cuántas reservas se han realizado en un periodo (por ejemplo, último trimestre).
+
+SELECT
+    s.nombre AS sala,
+    COUNT(r.reserva_id) AS total_reservas
+FROM
+    sala s
+        LEFT JOIN
+    reserva r ON s.sala_id = r.sala_id
+WHERE
+    r.fecha BETWEEN '2024-10-01' AND '2024-12-31'
+GROUP BY
+    s.sala_id, s.nombre
+ORDER BY
+    total_reservas DESC;
+
+-- Identificar la sala más reservada.
+
+SELECT
+    s.nombre AS sala,
+    COUNT(r.reserva_id) AS total_reservas
+FROM
+    sala s
+        JOIN
+    reserva r ON s.sala_id = r.sala_id
+GROUP BY
+    s.sala_id, s.nombre
+ORDER BY
+    total_reservas DESC
+LIMIT 1;
+
+-- Número de reservas realizadas por cada miembro.
+
+SELECT
+    m.nombre AS miembro,
+    COUNT(r.reserva_id) AS total_reservas
+FROM
+    miembro m
+        LEFT JOIN
+    reserva r ON m.miembro_id = r.miembro_id
+GROUP BY
+    m.miembro_id, m.nombre, m.email
+ORDER BY
+    total_reservas DESC;
+
+-- Comparar el número de asistentes con el aforo de la sala en cada reserva:
+
+
+-- Detectar reservas con asistentes cercanos al aforo máximo.
+
+
+-- Detectar reservas infrautilizadas (por ejemplo, asistentes <= aforo/3).
+
+SELECT
+    r.reserva_id,
+    s.nombre AS sala,
+    s.aforo,
+    r.asistentes,
+    r.fecha,
+    CASE
+        WHEN r.asistentes >= (s.aforo * 0.9) THEN 'CRÍTICA (Casi llena)'
+        WHEN r.asistentes <= (s.aforo / 3) THEN 'INFRAUTILIZADA'
+        ELSE 'OPTIMA'
+        END AS estado_eficiencia
+FROM
+    reserva r
+        JOIN
+    sala s ON r.sala_id = s.sala_id
+WHERE
+    r.asistentes IS NOT NULL
+  AND r.estado != 'CANCELADA'
+ORDER BY
+    estado_eficiencia DESC, s.aforo DESC;
+

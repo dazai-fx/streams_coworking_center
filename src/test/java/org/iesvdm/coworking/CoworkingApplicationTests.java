@@ -13,11 +13,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.Month;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.time.format.TextStyle;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @SpringBootTest
@@ -403,7 +403,7 @@ class CoworkingApplicationTests {
 
         long miembrosConObservacion = reservaRepository.findAll().stream()
                 .filter(r -> "Requiere equipamiento especial".equals(r.getObservaciones()))
-                .map(r -> r.getMiembro().getId()) // usamos ID para contar distintos
+                .map(r -> r.getMiembro().getId())
                 .distinct()
                 .count();
 
@@ -467,7 +467,7 @@ class CoworkingApplicationTests {
     void testMiembrosDeCadaPlanCuenta (){
 
         var miembrosBasic = miembroRepository.findAll().stream()
-                .filter(m -> "BASIC".equals(m.getPlan())) // Uso de comillas dobles
+                .filter(m -> "BASIC".equals(m.getPlan()))
                 .count();
 
         System.out.println("Miembros Basic: " + miembrosBasic);
@@ -486,5 +486,396 @@ class CoworkingApplicationTests {
 
     }
 
+    // Miembros dados de alta a partir de una determinada fecha (por ejemplo, desde junio de 2024).
+
+    @Test
+    void testMiembrosApartirDeFechaDeAltaDeterminada(){
+
+        LocalDate fechaReferencia = LocalDate.of(2024, 6, 1);
+
+        List<Miembro> miembros = miembroRepository.findAll().stream()
+                .filter(m -> !m.getFechaAlta().isBefore(fechaReferencia))
+                .toList();
+
+        miembros.forEach(m ->
+                System.out.println(m.getNombre() + " - Fecha alta: " + m.getFechaAlta())
+        );
+    }
+
+    // Listado general de salas con nombre, aforo y precio/hora.
+
+    @Test
+    void testListadoGeneralSalas(){
+        List<String> listado = salaRepository.findAll().stream()
+                .map(s -> "Nombre: " + s.getNombre() +
+                        " | Aforo: " + s.getAforo() +
+                        " | Precio/hora: " + s.getPrecioHora())
+                .toList();
+
+        listado.forEach(System.out::println);
+    }
+
+    // Salas con aforo mayor o igual que X (por ejemplo, 15 personas).
+
+    @Test
+    void testSalasConMayorOIguala15personas(){
+
+        int aforoMinimo = 15;
+
+        List<Sala> salas = salaRepository.findAll().stream()
+                .filter(s -> s.getAforo() >= aforoMinimo)
+                .toList();
+
+        salas.forEach(s ->
+                System.out.println(s.getNombre() +
+                        " | Aforo: " + s.getAforo() +
+                        " | Precio/hora: " + s.getPrecioHora())
+        );
+
+    }
+
+    // Salas ordenadas por precio_hora de mayor a menor.
+
+    @Test
+    void testSalasOrdenadasPorPrecio(){
+
+        List<Sala> salas = salaRepository.findAll().stream()
+                .sorted((s1, s2) -> s2.getPrecioHora()
+                                        .compareTo(s1.getPrecioHora()))
+                .toList();
+
+        salas.forEach(s ->
+                System.out.println(s.getNombre() +
+                        " | Precio/hora: " + s.getPrecioHora())
+        );
+
+    }
+
+    // Listar las salas que disponen de pantalla = true.
+
+    @Test
+    void testSalasConPantallasEnTrue(){
+        List<Sala> salas = salaRepository.findAll().stream()
+                .filter(s -> s.getRecursos() != null &&
+                        Boolean.TRUE.equals(s.getRecursos().get("pantalla")))
+                .toList();
+
+        salas.forEach(s ->
+                System.out.println(s.getNombre() +
+                        " | Pantalla: " + s.getRecursos().get("pantalla"))
+        );
+    }
+
+    // Listar las salas que permiten videocall
+
+    @Test
+    void testSalasConVideoCall(){
+        List<Sala> salas = salaRepository.findAll().stream()
+                .filter(s -> s.getRecursos() != null &&
+                        Boolean.TRUE.equals(s.getRecursos().get("videocall")))
+                .toList();
+
+        salas.forEach(s ->
+                System.out.println(s.getNombre() +
+                        " | Videocall: " + s.getRecursos().get("videocall"))
+        );
+    }
+
+    // Mostrar para cada sala el valor de un recurso concreto (por ejemplo, sonido o número de microfonos si existe).
+
+    @Test
+    void testMostrarRecursoSonido(){
+
+        List<String> resultado = salaRepository.findAll().stream()
+                .map(s -> {
+                    Object sonido = null;
+
+                    if (s.getRecursos() != null) {
+                        sonido = s.getRecursos().get("sonido");
+                    }
+
+                    return s.getNombre() + " | Sonido: " + sonido;
+                })
+                .toList();
+
+        resultado.forEach(System.out::println);
+
+    }
+
+    // Listado de reservas con: Nombre del miembro. Nombre de la sala. Fecha, hora de inicio, hora fin, horas totales y estado.
+
+    @Test
+    void testReservas2(){
+
+        record ReservaDTO(
+                String nombreMiembro,
+                String nombreSala,
+                LocalDate fecha,
+                LocalTime horaInicio,
+                LocalTime horaFin,
+                BigDecimal horas,
+                String estado
+        ) {}
+
+        List<ReservaDTO> listado = reservaRepository.findAll().stream()
+                .map(r -> new ReservaDTO(
+                        r.getMiembro().getNombre(),
+                        r.getSala().getNombre(),
+                        r.getFecha(),
+                        r.getHoraInicio(),
+                        r.getHoraFin(),
+                        r.getHoras(),
+                        r.getEstado()
+                ))
+                .toList();
+
+        listado.forEach(System.out::println);
+
+    }
+
+    // Reservas de un miembro concreto (por ejemplo, “Jorge Castillo”) he cambiado el ejemplo por uno que si tengo en bd
+
+    @Test
+    void testReservaJorge(){
+
+        List<Reserva> reservas = reservaRepository.findAll().stream()
+                .filter(r -> r.getMiembro() != null &&
+                        "Jorge Castillo".equals(r.getMiembro().getNombre()))
+                .toList();
+
+        reservas.forEach(r ->
+                System.out.println(
+                        r.getMiembro().getNombre() + " | " +
+                                r.getSala().getNombre() + " | " +
+                                r.getFecha() + " | " +
+                                r.getHoraInicio() + " - " +
+                                r.getHoraFin()
+                )
+        );
+
+    }
+
+    // Reservas de un determinado mes y año (por ejemplo, octubre de 2024).
+
+    @Test
+    void testReservasMesYAnio(){
+
+        int mes = 10; // Octubre
+        int anio = 2024;
+
+        List<Reserva> reservas = reservaRepository.findAll().stream()
+                .filter(r -> r.getFecha() != null &&
+                        r.getFecha().getYear() == anio &&
+                        r.getFecha().getMonthValue() == mes)
+                .toList();
+
+        reservas.forEach(r ->
+                System.out.println(
+                        r.getMiembro().getNombre() + " | " +
+                                r.getSala().getNombre() + " | " +
+                                r.getFecha() + " | " +
+                                r.getHoraInicio() + " - " +
+                                r.getHoraFin() + " | " +
+                                r.getEstado()
+                )
+        );
+
+    }
+
+    // Reservas con estado PENDIENTE, CONFIRMADA, CANCELADA o ASISTIDA (según se indique).
+
+    @Test
+    void testReservasSegunEstado(){
+
+        String estadoBuscado = "CONFIRMADA";
+
+        List<Reserva> reservas = reservaRepository.findAll().stream()
+                .filter(r -> estadoBuscado.equals(r.getEstado()))
+                .toList();
+
+        reservas.forEach(r ->
+                System.out.println(
+                        r.getMiembro().getNombre() + " | " +
+                                r.getSala().getNombre() + " | " +
+                                r.getFecha() + " | " +
+                                r.getHoraInicio() + " - " +
+                                r.getHoraFin() + " | " +
+                                r.getEstado()
+                )
+        );
+
+    }
+
+    // Reservas en las que se han aplicado descuentos (descuento_pct no nulo).
+
+    @Test
+    void testReservasDescuentoNulo(){
+        List<Reserva> reservasConDescuento = reservaRepository.findAll().stream()
+                .filter(r -> r.getDescuentoPct() != null
+                        && r.getDescuentoPct().compareTo(BigDecimal.ZERO) > 0)
+                .toList();
+
+        reservasConDescuento.forEach(r ->
+                System.out.println(
+                        r.getMiembro().getNombre() + " | " +
+                                r.getSala().getNombre() + " | " +
+                                r.getFecha() + " | " +
+                                r.getHoraInicio() + " - " +
+                                r.getHoraFin() + " | " +
+                                "Descuento: " + r.getDescuentoPct() + "%"
+                )
+        );
+    }
+    /* Ingresos estimados por sala y mes:
+
+
+    Calcular el importe teórico de cada reserva:
+
+     importe = horas * precio_hora * (1 - descuento_pct/100)
+     (recuerda considerar descuento_pct nulo como 0).
+
+
+    Mostrar, para cada sala y mes, el total estimado.
+    */
+
+    @Test
+    void testIngresosEstimadosSalaMes() {
+
+        // Usamos TreeMap en el primer nivel para que las salas salgan ordenadas alfabéticamente
+        Map<String, Map<String, BigDecimal>> reporte = reservaRepository.findAll().stream()
+                .collect(Collectors.groupingBy(
+                        res -> res.getSala().getNombre(),
+                        TreeMap::new,
+                        Collectors.groupingBy(
+                                res -> res.getFecha().getMonth().getDisplayName(TextStyle.FULL, new Locale("es", "ES")),
+                                Collectors.mapping(
+                                        res -> {
+                                            // 1. Extraer valores con seguridad frente a nulos
+                                            BigDecimal horas = (res.getHoras() != null) ? res.getHoras() : BigDecimal.ZERO;
+                                            BigDecimal precioHora = (res.getSala().getPrecioHora() != null) ? res.getSala().getPrecioHora() : BigDecimal.ZERO;
+                                            BigDecimal dtoPct = (res.getDescuentoPct() != null) ? res.getDescuentoPct() : BigDecimal.ZERO;
+
+                                            // 2. Cálculo: importe = (horas * precioHora) * (1 - dto/100)
+                                            // Es más seguro hacer: (Total Bruto * (100 - dto)) / 100
+                                            BigDecimal importeBruto = horas.multiply(precioHora);
+                                            BigDecimal porcentajeAPagar = new BigDecimal("100").subtract(dtoPct);
+
+                                            // 3. Aplicar escala y redondeo para evitar ArithmeticException
+                                            return importeBruto.multiply(porcentajeAPagar)
+                                                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                                        },
+                                        Collectors.reducing(BigDecimal.ZERO, BigDecimal::add)
+                                )
+                        )
+                ));
+
+        // Impresión del reporte con formato limpio
+        System.out.println("--- REPORTE DE INGRESOS ESTIMADOS POR SALA Y MES ---");
+        reporte.forEach((sala, meses) -> {
+            System.out.println("\nSala: " + sala);
+            meses.forEach((mes, total) -> {
+                // Capitalizamos la primera letra del mes para que quede más profesional
+                String mesFormateado = mes.substring(0, 1).toUpperCase() + mes.substring(1);
+                System.out.printf("   [%-12s] -> %8.2f€%n", mesFormateado, total);
+            });
+        });
+        System.out.println("\n----------------------------------------------------");
+    }
+
+    // Listar, para cada sala, cuántas reservas se han realizado en un periodo (por ejemplo, último trimestre).
+
+    @Test
+    void testConteoReservasPorSalaEnUltimoTrimestre() {
+        // Definimos el rango del último trimestre de 2024
+        LocalDate fechaInicio = LocalDate.of(2024, 10, 1);
+        LocalDate fechaFin = LocalDate.of(2024, 12, 31);
+
+        // Obtenemos todas y procesamos con Stream
+        Map<String, Long> conteoPorSala = reservaRepository.findAll().stream()
+                .filter(res -> !res.getFecha().isBefore(fechaInicio)
+                        && !res.getFecha().isAfter(fechaFin))
+                .collect(Collectors.groupingBy(
+                        res -> res.getSala().getNombre(),
+                        Collectors.counting() // Cuenta los elementos en cada grupo
+                ));
+
+        System.out.println("Reservas por sala (Oct-Dic 2024):");
+        conteoPorSala.entrySet().stream()
+                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+                .forEach(entry ->
+                        System.out.printf("Sala: %-15s | Reservas: %d%n",
+                                entry.getKey(), entry.getValue())
+                );
+    }
+
+    // Identificar la sala más reservada.
+
+    @Test
+    void testSalaMasReservada() {
+
+        Map<String, Long> conteoReservas = reservaRepository.findAll().stream()
+                .collect(Collectors.groupingBy(
+                        res -> res.getSala().getNombre(),
+                        Collectors.counting()
+                ));
+
+
+        Optional<Map.Entry<String, Long>> salaMasReservada = conteoReservas.entrySet().stream()
+                .max(Map.Entry.comparingByValue());
+
+        salaMasReservada.ifPresent(resultado ->
+                System.out.printf("La sala más reservada es '%s' con un total de %d reservas.%n",
+                        resultado.getKey(), resultado.getValue())
+        );
+    }
+
+    // Número de reservas realizadas por cada miembro.
+
+    @Test
+    void testReservasPorMiembro() {
+
+        Map<String, Long> reservasPorMiembro = reservaRepository.findAll().stream()
+                .collect(Collectors.groupingBy(
+                        res -> res.getMiembro().getNombre(),
+                        TreeMap::new, // Para que salgan ordenados por nombre A-Z
+                        Collectors.counting()
+                ));
+
+
+        System.out.println("--- TOTAL DE RESERVAS POR MIEMBRO ---");
+        reservasPorMiembro.forEach((nombre, total) -> {
+            System.out.printf("Miembro: %-20s | Total: %d reservas%n", nombre, total);
+        });
+    }
+
+    // Comparar el número de asistentes con el aforo de la sala en cada reserva:
+
+
+    // Detectar reservas con asistentes cercanos al aforo máximo.
+
+
+    // Detectar reservas infrautilizadas (por ejemplo, asistentes <= aforo/3).
+
+
+    @Test
+    void testAnalisisEficienciaAforo() {
+        List<Reserva> todas = reservaRepository.findAll();
+
+        Map<String, List<Reserva>> reporteEficiencia = todas.stream()
+                .filter(res -> res.getAsistentes() != null && !"CANCELADA".equals(res.getEstado()))
+                .collect(Collectors.groupingBy(res -> {
+                    double ratio = res.getAsistentes().doubleValue() / res.getSala().getAforo();
+                    if (ratio >= 0.9) return "CRÍTICAS";
+                    if (ratio <= (1.0 / 3.0)) return "INFRAUTILIZADAS";
+                    return "EFICIENTES";
+                }));
+
+
+        reporteEficiencia.forEach((categoria, reservas) -> {
+            System.out.println("\n=== CATEGORÍA: " + categoria + " (" + reservas.size() + ") ===");
+            reservas.forEach(r -> System.out.printf("   - %s: %d asistentes para aforo de %d (Fecha: %s)%n",
+                    r.getSala().getNombre(), r.getAsistentes(), r.getSala().getAforo(), r.getFecha()));
+        });
+    }
 
 }
